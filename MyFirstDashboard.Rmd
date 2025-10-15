@@ -1,0 +1,272 @@
+---
+#Feito por Sara S. Ferreira
+title: "Produtos da Cesta Básica"
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: rows
+    vertical_layout: fill
+    theme: sandstone
+runtime: shiny
+---
+
+```{r setup, include=FALSE}
+#install.packages("flexdashboard")
+#install.packages("readxl")
+#install.packages("shiny")
+#install.packages("shinyWidgets")
+#install.packages("DT")
+#install.packages("tidyverse")
+#install.packages("scales")
+
+library(flexdashboard)
+library(readxl)
+library(shiny)
+library(shinyWidgets)
+library(DT)
+library(tidyverse)
+library(plotly)
+library(scales)
+
+
+#Pegando dados
+dados <- read_excel("basedados.xlsx")
+
+```
+
+
+Página Inicial
+===
+```{=html}
+
+
+<div style="display: flex; align-items: center; margin-left: 30px;">
+  
+    <img src="Data-cuate.png" width="600"/>
+    
+  <div style="display: flex; flex-direction: column; align-items: left; margin-left: 60px;">
+      
+    <div style="color:black; font-size: 40px; font-weight: bold;">
+        Seja bem-vindo!
+      </div>
+      
+      <p>Sistema desenvolvido para o acompanhamento da variação dos preços dos produtos que compõem a cesta básica em Feira de Santana.</p>
+      <p>Os dados são colhidos pelos alunos do curso de economia e nosso objetivo é oferecer transparência e visualização desses dados.</p>
+      
+      <div style="background-color:#9FDA5F; color:white; padding:10px; border-radius:10px; width:320px; text-align:left;">
+        Navegue pelo sistema atráves do menu superior
+      </div>
+  
+  </div>
+</div>
+
+```
+
+
+Listagem dos Dados
+===
+
+Inputs {.sidebar}
+---
+```{r}
+
+pickerInput(
+    inputId = "produto_sel",
+    label = "Selecione o produto:",
+    choices = sort(unique(dados$Produto)),
+    multiple = TRUE,
+    selected = unique(dados$Produto)
+)
+  
+sliderInput(
+  "ano_sel", "Ano:",
+  min = min(dados$Ano), max = max(dados$Ano),
+  value = range(dados$Ano), step = 1, sep = ""
+)
+
+
+#Função que vai pegar todos dados filtrados
+dados_filtrados <- reactive({
+  dados |> 
+    filter(
+      Produto %in% input$produto_sel,
+      Ano >= input$ano_sel[1],
+      Ano <= input$ano_sel[2]
+    )
+})
+
+```
+
+
+Row {data-width=350}
+---
+
+### Tabela
+
+```{r}
+DT::dataTableOutput("tabela_dados")
+
+output$tabela_dados <- DT::renderDataTable({
+  datatable(
+    dados_filtrados(),
+    extensions = "Buttons",
+    options = list(
+      dom = "Bfrtip",
+      buttons = c("copy", "csv", "excel", "pdf", "print"),
+      pageLength = 10
+    )
+  )
+})
+```
+
+
+Dashboard
+===
+
+Inputs {.sidebar}
+---
+```{r}
+
+pickerInput(
+    inputId = "produto_sel",
+    label = "Selecione o produto:",
+    choices = sort(unique(dados$Produto)),
+    multiple = TRUE,
+    selected = unique(dados$Produto)
+)
+  
+sliderInput(
+  "ano_sel", "Ano:",
+  min = min(dados$Ano), max = max(dados$Ano),
+  value = range(dados$Ano), step = 1, sep = ""
+)
+
+
+#Função que vai pegar todos dados filtrados
+dados_filtrados <- reactive({
+  dados |> 
+    filter(
+      Produto %in% input$produto_sel,
+      Ano >= input$ano_sel[1],
+      Ano <= input$ano_sel[2]
+    )
+})
+
+```
+
+
+Row
+---
+
+### 
+```{r}
+
+valueBoxOutput("vb_qtde", width = 4)
+
+output$vb_qtde <- renderValueBox({
+  qtde <- nrow(dados_filtrados())
+  valueBox(
+    value = qtde,
+    caption = "Registros Filtrados",
+    icon = "fa-database",
+    color = "#FFD700"
+  )
+})
+
+```
+
+### 
+```{r}
+valueBoxOutput("vb_produto_mais_caro", width = 4)
+
+output$vb_produto_mais_caro <- renderValueBox({
+  df_max <- dados_filtrados() %>%
+    group_by(Produto) %>%
+    summarise(Preco_Medio = mean(Preco_Medio, na.rm = TRUE), .groups = "drop") %>%
+    arrange(desc(Preco_Medio)) %>%
+    slice(1)
+  
+  valueBox(
+    value = dollar(df_max$Preco_Medio, prefix = "R$ "),
+    caption = paste("Produto mais caro:", df_max$Produto),
+    icon = "fa-gem",
+    color = "#FFA500"
+  )
+})
+```
+
+Column {.tabset}
+---
+
+### Gráfico 1
+```{r}
+### Participação dos Produtos no Valor Total
+
+plotlyOutput("grafico_pizza")
+
+output$grafico_pizza <- renderPlotly({
+  # Agrupar os dados filtrados por produto e somar o valor total
+  df_pizza <- dados_filtrados() %>%
+    group_by(Produto) %>%
+    summarise(valor_total = sum(Valor_Total, na.rm = TRUE), .groups = "drop") %>%
+    mutate(percentual = valor_total / sum(valor_total))
+  
+  # Criar gráfico de pizza interativo
+  plot_ly(
+    data = df_pizza,
+    labels = ~Produto,
+    values = ~valor_total,
+    type = "pie",
+    textposition = "inside",
+    textinfo = "label+percent",
+    hoverinfo = "text",
+    text = ~paste(
+      Produto, 
+      "<br>Valor Total: R$", format(round(valor_total, 2), big.mark = ".", decimal.mark = ",")
+    ),
+    marker = list(line = list(color = "#FFFFFF", width = 1))
+  ) %>%
+    layout(
+      title = "Participação dos Produtos no Valor Total da Cesta Básica",
+      showlegend = TRUE
+    )
+})
+
+```
+
+### Gráfico 2
+```{r}
+### Evolução do Valor Médio dos Produtos ao Longo do Tempo
+
+plotlyOutput("grafico_valor_medio")
+
+output$grafico_valor_medio <- renderPlotly({
+  # Agrupar os dados filtrados por Ano e Produto, e calcular o valor médio
+  df_media <- dados_filtrados() %>%
+    group_by(Ano, Produto) %>%
+    summarise(valor_medio = mean(Preco_Medio, na.rm = TRUE), .groups = "drop")
+  
+  # Criar o gráfico de linhas interativo
+  plot_ly(
+    data = df_media,
+    x = ~Ano,
+    y = ~valor_medio,
+    color = ~Produto,
+    type = 'scatter',
+    mode = 'lines+markers',
+    hoverinfo = "text",
+    text = ~paste(
+      "Produto:", Produto,
+      "<br>Ano:", Ano,
+      "<br>Valor médio: R$", format(round(valor_medio, 2), big.mark = ".", decimal.mark = ",")
+    )
+  ) %>%
+    layout(
+      title = "Evolução do Valor Médio dos Produtos Selecionados",
+      xaxis = list(title = "Ano"),
+      yaxis = list(title = "Valor Médio (R$)"),
+      legend = list(title = list(text = "<b>Produtos</b>"))
+    )
+})
+
+```
+

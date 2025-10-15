@@ -1,6 +1,6 @@
-# 🧺 Minicurso: Criando meu dashboard em R
+<img width=100% src="https://capsule-render.vercel.app/api?type=waving&color=9FDA5F&height=120&section=header"/>
 
-**Desenvolvido por [Sara S. Ferreira](#-desenvolvedora)**  
+# Minicurso: Criando meu dashboard em R
 
 Um painel interativo criado em **R** com **Flexdashboard** e **Shiny**, que permite explorar os produtos que compõem a cesta básica brasileira, analisando sua evolução de preços e participação no valor total da cesta ao longo do tempo.  
 
@@ -49,4 +49,10 @@ A interface é dinâmica e intuitiva, oferecendo **gráficos interativos**, **ta
 | **Tidyverse** | Manipulação e limpeza dos dados |
 | **Scales** | Formatação de valores e escalas |
 
+## Desenvolvido por
+<table>
+  <tr>
+    <td align="center"><img style="" src="https://avatars.githubusercontent.com/u/143294885?v=4" width="100px;" alt=""/><br /><sub><b> Sara S. Ferreira </b></sub></a><br />👨‍💻</a></td>
+  </tr>
+</table>
 
